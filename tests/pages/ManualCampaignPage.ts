@@ -1,6 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 export class ManualCampaignPage {
+    // ============= Constants =============
+    // اسم القالب اللي التست دايمًا بيختاره (لازم يطابق الاسم الظاهر في الكارت بالظبط)
+    static readonly DEFAULT_TEMPLATE_NAME = 'fffffffffffff';
+
     // ============= Variables =============
     readonly page: Page;
 
@@ -82,32 +86,41 @@ export class ManualCampaignPage {
         return 'first available audience';
     }
 
-    // لو مبعتش اسم: يختار أول قالب متاح ويرجّع اسمه
-    async selectTemplate(templateName?: string): Promise<string> {
+    // يختار القالب بالاسم (الافتراضي: DEFAULT_TEMPLATE_NAME) ويرجّع اسمه
+    async selectTemplate(
+        templateName: string = ManualCampaignPage.DEFAULT_TEMPLATE_NAME
+    ): Promise<string> {
         // استنى الخطوة تتحمل (القوالب غالبًا بتيجي من API)
         await this.page.waitForLoadState('networkidle').catch(() => { });
 
         try {
-            // أول حاجة: تأكد إن أزرار المعاينة ظهرت = إحنا فعلًا في خطوة القوالب
+            // تأكد إن أزرار المعاينة ظهرت = إحنا فعلًا في خطوة القوالب
             await expect(this.templatePreviewButtons.first()).toBeVisible({ timeout: 20000 });
         } catch (e) {
-            // لقطة شاشة للمساعدة في معرفة المشكلة لو الخطوة مفتحتش
             await this.page.screenshot({ path: 'debug-template-step.png', fullPage: true });
             throw e;
         }
 
-        const cards = templateName
-            ? this.templateCards.filter({ hasText: templateName })
-            : this.templateCards;
+        // الكارت اللي عنوانه (h3) = اسم القالب بالظبط (مش مجرد جزء منه)
+        const escaped = templateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const card = this.templateCards
+            .filter({
+                has: this.page.locator('h3', { hasText: new RegExp(`^\\s*${escaped}\\s*$`) }),
+            })
+            .first();
 
-        const card = cards.first();
-        await expect(card).toBeVisible({ timeout: 15000 });
+        await expect(
+            card,
+            `Template "${templateName}" was not found in the templates list`
+        ).toBeVisible({ timeout: 15000 });
 
-        const title = card.locator('h3').first();
-        const name = (await title.innerText()).trim();
+        // لو القالب بعيد في الليست، اسحب لحد ما يظهر
+        await card.scrollIntoViewIfNeeded();
+
+        const name = (await card.locator('h3').first().innerText()).trim();
 
         // اختيار القالب (لو في زر "اختيار" جوه الكارت بدّل السطر ده بالضغط عليه)
-        await title.click();
+        await card.locator('h3').first().click();
 
         return name;
     }

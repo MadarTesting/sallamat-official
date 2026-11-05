@@ -18,6 +18,7 @@ test.describe('Manual Campaign Tests', () => {
 
     test('Create Manual Campaign Successfully', async ({ page }) => {
         const campaignName = `Auto Campaign ${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        const templateToSelect = ManualCampaignPage.DEFAULT_TEMPLATE_NAME;
 
         // Step 1: فتح الحملات اليدوية وإنشاء حملة
         await manualCampaignPage.openManualCampaigns();
@@ -31,9 +32,10 @@ test.describe('Manual Campaign Tests', () => {
         await manualCampaignPage.selectAudience();
         await manualCampaignPage.clickNext();
 
-        // Step 4: اختيار أول قالب متاح
-        const templateName = await manualCampaignPage.selectTemplate();
-        console.log(`Selected template: ${templateName}`);
+        // Step 4: اختيار القالب المحدد (دايمًا نفس القالب)
+        const selectedTemplate = await manualCampaignPage.selectTemplate(templateToSelect);
+        expect(selectedTemplate).toBe(templateToSelect);
+        console.log(`Selected template: ${selectedTemplate}`);
         await manualCampaignPage.clickNext();
 
         // Step 5: إنشاء الحملة
