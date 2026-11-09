@@ -1,9 +1,20 @@
 {
   "name": "sallamat-official",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sallamat – Playwright E2E & API test automation",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "playwright test",
+    "test:auth": "playwright test tests/specs/auth",
+    "test:campaigns": "playwright test tests/specs/campaigns",
+    "test:templates": "playwright test tests/specs/templates",
+    "test:ads": "playwright test tests/specs/ads",
+    "test:customers": "playwright test tests/specs/customers",
+    "test:api": "playwright test tests/specs/auth/login.api.spec.ts",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit -p ."
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -11,6 +22,7 @@
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
+    "exceljs": "^4.4.0",
     "typescript": "^7.0.2"
   }
 }

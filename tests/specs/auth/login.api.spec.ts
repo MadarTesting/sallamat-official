@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import testData from './testdata/testdata.json';
-import { sendAndLog } from './utils/apilogger';
-import { interpretAuth } from './utils/authresult';
+import testData from '../../testdata/testdata.json';
+import { sendAndLog } from '../../utils/apiLogger';
+import { interpretAuth } from '../../utils/authResult';
 
 const BASE_URL = 'https://demo.sallamaat.com';
 

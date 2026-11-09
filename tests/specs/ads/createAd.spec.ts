@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { AdPage } from './pages/AdPage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { AdPage } from '../../pages/AdPage';
+import testData from '../../testdata/testdata.json';
 
 // ============================================================
 //  إنشاء إعلان
@@ -36,6 +36,6 @@ test.describe('Create Ad', () => {
 
     test('Create ad successfully', async () => {
         // الصورة اللي هتترفع في main/div[1] قبل أول "الخطوة القادمة"
-        await adPage.createAd('tests/fixtures/ad-image.png');
+        await adPage.createAd('tests/assets/ad-image.png');
     });
 });

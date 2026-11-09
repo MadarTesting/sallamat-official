@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class LoginPage {
+export class LoginPage extends BasePage {
     //============= variables =============
-    readonly page: Page;
     readonly url = 'https://demo.sallamaat.com/auth?step=login';
 
     //============= locators ==============
@@ -12,7 +12,7 @@ export class LoginPage {
 
     //============= constructor ===========
     constructor(page: Page) {
-        this.page = page;
+        super(page);
         this.emailInput = page.locator("//input[@id='email-input']");
         this.passwordInput = page.locator("//input[@id='password-password']");
         this.loginButton = page.getByRole('button', { name: 'تسجيل الدخول' });

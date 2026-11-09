@@ -1,13 +1,13 @@
 import { test } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { TemplatePage } from './pages/TemplatePage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { TemplatePage } from '../../pages/TemplatePage';
+import testData from '../../testdata/testdata.json';
 
 // ============================================================
-//  إنشاء قالب بنص فقط (بدون مرفق)
-//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ نص ➜ هيدر ➜ محتوى ➜ فوتر ➜ إرسال
+//  إنشاء قالب بملف PDF
+//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ ملف ➜ رفع ➜ محتوى ➜ فوتر ➜ إرسال
 // ============================================================
-test.describe('Create Template – Text Only', () => {
+test.describe('Create Template – File Attachment', () => {
 
     let loginPage: LoginPage;
     let templatePage: TemplatePage;
@@ -24,13 +24,13 @@ test.describe('Create Template – Text Only', () => {
         await loginPage.expectLoggedIn();
     });
 
-    test('Create template with text only successfully', async ({ page }) => {
+    test('Create template with file (PDF) successfully', async ({ page }) => {
 
         await templatePage.createTemplate({
-            type: 'none',           // بدون مرفق – الزر "نص"
-            header: 'Automated Text Header',   // header_text-input
-            body: 'Automated Text Content',
-            footer: 'Automated Text Footer',
+            type: 'file',
+            filePath: 'tests/assets/sample.pdf',
+            body: 'Automated File Content',
+            footer: 'Automated File Footer',
         });
 
         await templatePage.expectSubmitVisible();

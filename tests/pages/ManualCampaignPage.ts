@@ -1,12 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class ManualCampaignPage {
+export class ManualCampaignPage extends BasePage {
     // ============= Constants =============
     // اسم القالب اللي التست دايمًا بيختاره (لازم يطابق الاسم الظاهر في الكارت بالظبط)
     static readonly DEFAULT_TEMPLATE_NAME = 'fffffffffffff';
-
-    // ============= Variables =============
-    readonly page: Page;
 
     // ============= Locators =============
     readonly manualCampaignsLink: Locator;
@@ -20,7 +18,7 @@ export class ManualCampaignPage {
 
     // ============= Constructor =============
     constructor(page: Page) {
-        this.page = page;
+        super(page);
 
         this.manualCampaignsLink = page.locator("//p[contains(text(),'الحملات اليدوية')]");
         this.createManualCampaignButton = page.locator("//span[contains(text(),'إنشاء حملة يدوية')]");
@@ -46,72 +44,6 @@ export class ManualCampaignPage {
         this.createCampaignButton = page.getByRole('button', {
             name: 'إنشاء الحملة',
             exact: true,
-        });
-    }
-
-    // ============= API Logging (Postman-like) =============
-    // بيطبع في التيرمنال كل Request/Response (Method + URL + Status + Headers + Body)
-    enableApiLogging(options: { urlFilter?: RegExp; maxBodyLength?: number } = {}) {
-        const { urlFilter, maxBodyLength = 2000 } = options;
-
-        this.page.on('response', async (response) => {
-            try {
-                const request = response.request();
-                const type = request.resourceType();
-
-                // نطبع بس الـ API calls (مش الصور والـ css والـ js)
-                if (type !== 'xhr' && type !== 'fetch') return;
-                if (urlFilter && !urlFilter.test(request.url())) return;
-
-                const status = response.status();
-                const icon = status >= 400 ? '❌' : '✅';
-
-                // Request body
-                let reqBody = request.postData() ?? '';
-                try {
-                    reqBody = JSON.stringify(JSON.parse(reqBody), null, 2);
-                } catch {
-                    /* مش JSON */
-                }
-
-                // Response body
-                let resBody = '';
-                try {
-                    resBody = JSON.stringify(await response.json(), null, 2);
-                } catch {
-                    try {
-                        resBody = await response.text();
-                    } catch {
-                        resBody = '<no body>';
-                    }
-                }
-                if (resBody.length > maxBodyLength) {
-                    resBody = resBody.slice(0, maxBodyLength) + '\n... (truncated)';
-                }
-
-                // نخفي التوكن
-                const headers = { ...request.headers() };
-                if (headers['authorization']) headers['authorization'] = '***';
-
-                console.log(
-                    [
-                        '',
-                        '='.repeat(80),
-                        `${icon} ${request.method()} ${request.url()}`,
-                        `Status: ${status} ${response.statusText()}`,
-                        '--- Request Headers ---',
-                        JSON.stringify(headers, null, 2),
-                        reqBody ? `--- Request Body ---\n${reqBody}` : '',
-                        '--- Response Body ---',
-                        resBody,
-                        '='.repeat(80),
-                    ]
-                        .filter(Boolean)
-                        .join('\n')
-                );
-            } catch {
-                // لو الصفحة اتقفلت أثناء القراءة نتجاهل الخطأ
-            }
         });
     }
 

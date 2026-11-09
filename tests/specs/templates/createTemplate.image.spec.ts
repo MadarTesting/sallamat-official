@@ -1,13 +1,13 @@
 import { test } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { TemplatePage } from './pages/TemplatePage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { TemplatePage } from '../../pages/TemplatePage';
+import testData from '../../testdata/testdata.json';
 
 // ============================================================
-//  إنشاء قالب بملف PDF
-//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ ملف ➜ رفع ➜ محتوى ➜ فوتر ➜ إرسال
+//  إنشاء قالب بصورة (image)
+//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ صورة ➜ رفع ➜ محتوى ➜ فوتر ➜ إرسال
 // ============================================================
-test.describe('Create Template – File Attachment', () => {
+test.describe('Create Template – Image Attachment', () => {
 
     let loginPage: LoginPage;
     let templatePage: TemplatePage;
@@ -24,13 +24,13 @@ test.describe('Create Template – File Attachment', () => {
         await loginPage.expectLoggedIn();
     });
 
-    test('Create template with file (PDF) successfully', async ({ page }) => {
+    test('Create template with image successfully', async ({ page }) => {
 
         await templatePage.createTemplate({
-            type: 'file',
-            filePath: 'tests/fixtures/sample.pdf',
-            body: 'Automated File Content',
-            footer: 'Automated File Footer',
+            type: 'image',
+            filePath: 'tests/assets/sample.png',
+            body: 'Automated Image Content',
+            footer: 'Automated Image Footer',
         });
 
         await templatePage.expectSubmitVisible();

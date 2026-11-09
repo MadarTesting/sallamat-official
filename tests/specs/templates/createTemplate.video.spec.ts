@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { TemplatePage } from './pages/TemplatePage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { TemplatePage } from '../../pages/TemplatePage';
+import testData from '../../testdata/testdata.json';
 
 // ============================================================
 //  إنشاء قالب بفيديو MP4
@@ -28,7 +28,7 @@ test.describe('Create Template – Video Attachment', () => {
 
         await templatePage.createTemplate({
             type: 'video',
-            filePath: 'tests/fixtures/sample.mp4',
+            filePath: 'tests/assets/sample.mp4',
             body: 'Automated Video Content',
             footer: 'Automated Video Footer',
         });

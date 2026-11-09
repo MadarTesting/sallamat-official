@@ -1,13 +1,13 @@
 import { test } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { TemplatePage } from './pages/TemplatePage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { TemplatePage } from '../../pages/TemplatePage';
+import testData from '../../testdata/testdata.json';
 
 // ============================================================
-//  إنشاء قالب بصورة (image)
-//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ صورة ➜ رفع ➜ محتوى ➜ فوتر ➜ إرسال
+//  إنشاء قالب بنص فقط (بدون مرفق)
+//  Flow: تسجيل دخول ➜ القوالب ➜ إنشاء ➜ اسم ➜ تفعيل التوجل ➜ نص ➜ هيدر ➜ محتوى ➜ فوتر ➜ إرسال
 // ============================================================
-test.describe('Create Template – Image Attachment', () => {
+test.describe('Create Template – Text Only', () => {
 
     let loginPage: LoginPage;
     let templatePage: TemplatePage;
@@ -24,13 +24,13 @@ test.describe('Create Template – Image Attachment', () => {
         await loginPage.expectLoggedIn();
     });
 
-    test('Create template with image successfully', async ({ page }) => {
+    test('Create template with text only successfully', async ({ page }) => {
 
         await templatePage.createTemplate({
-            type: 'image',
-            filePath: 'tests/fixtures/sample.png',
-            body: 'Automated Image Content',
-            footer: 'Automated Image Footer',
+            type: 'none',           // بدون مرفق – الزر "نص"
+            header: 'Automated Text Header',   // header_text-input
+            body: 'Automated Text Content',
+            footer: 'Automated Text Footer',
         });
 
         await templatePage.expectSubmitVisible();

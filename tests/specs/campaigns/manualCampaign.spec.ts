@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { LoginPage } from './pages/loginpage';
-import { ManualCampaignPage } from './pages/ManualCampaignPage';
-import testData from './testdata/testdata.json';
+import { LoginPage } from '../../pages/LoginPage';
+import { ManualCampaignPage } from '../../pages/ManualCampaignPage';
+import testData from '../../testdata/testdata.json';
 
 test.describe('Manual Campaign Tests', () => {
     let loginPage: LoginPage;

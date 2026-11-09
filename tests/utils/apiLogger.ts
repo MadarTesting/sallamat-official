@@ -1,5 +1,5 @@
 import { test, type APIResponse } from '@playwright/test';
-import type { Verdict } from './authresult';
+import type { Verdict } from './authResult';
 
 const COLOR = {
     reset: '\x1b[0m',
