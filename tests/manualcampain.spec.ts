@@ -20,6 +20,12 @@ test.describe('Manual Campaign Tests', () => {
         const campaignName = `Auto Campaign ${Date.now()}_${Math.floor(Math.random() * 10000)}`;
         const templateToSelect = ManualCampaignPage.DEFAULT_TEMPLATE_NAME;
 
+        // تفعيل طباعة الـ APIs في التيرمنال (شبه Postman)
+        // كل الـ APIs:
+        manualCampaignPage.enableApiLogging();
+        // أو بفلتر معين (مثلًا الحملات بس):
+        // manualCampaignPage.enableApiLogging({ urlFilter: /campaign/i });
+
         // Step 1: فتح الحملات اليدوية وإنشاء حملة
         await manualCampaignPage.openManualCampaigns();
         await manualCampaignPage.clickCreateManualCampaign();
