@@ -1,8 +1,12 @@
 import type { Page } from '@playwright/test';
+import { printApiCall } from '../utils/apiLogFormat';
+
+// الصفحات اللي اللوجينج اتفعّل عليها بالفعل (عشان ما يتسجلش مرتين على نفس الصفحة)
+const pagesWithLogging = new WeakSet<Page>();
 
 /**
  * BasePage – كل الـ Page Objects بتورث منه.
- * فيه الحاجات المشتركة: الـ page + طباعة الـ APIs في التيرمنال (Postman-style).
+ * فيه الحاجات المشتركة: الـ page + طباعة الـ APIs في التيرمنال.
  */
 export abstract class BasePage {
 
@@ -12,79 +16,44 @@ export abstract class BasePage {
         this.page = page;
     }
 
-    // ============= API Logging (Postman-like) =============
+    // ============= API Logging =============
     /**
-     * بيطبع في التيرمنال كل API call (xhr/fetch):
-     * Method + URL + Status + Time + Request Headers/Body + Response Body.
-     * التوكن والكوكيز بيتخفوا، والملفات (رفع/تنزيل) بيتطبع ملخصها بس.
+     * بيطبع كل API call في التيرمنال مرة واحدة بس، بشكل: Payload / Preview / Response.
+     * - بيطبع بس الـ API calls (JSON) – مش صفحات Next.js (_rsc) ولا الصور والـ css
+     * - نفس الـ call لو الموقع بعته مرتين ورا بعض بيتطبع مرة واحدة
      *
-     * @param urlFilter     اطبع بس الـ URLs اللي بتطابق الـ Regex (مثلًا /campaign/i)
-     * @param maxBodyLength أقصى طول للـ Response Body قبل ما يتقص
+     * @param urlFilter اطبع بس الـ URLs اللي بتطابق الـ Regex (مثلًا /campaign/i)
      */
-    enableApiLogging(options: { urlFilter?: RegExp; maxBodyLength?: number } = {}) {
-        const { urlFilter, maxBodyLength = 3000 } = options;
+    enableApiLogging(options: { urlFilter?: RegExp } = {}) {
+        if (pagesWithLogging.has(this.page)) return;
+        pagesWithLogging.add(this.page);
+        const { urlFilter } = options;
 
         this.page.on('response', async (response) => {
             try {
                 const request = response.request();
-                const type = request.resourceType();
+                const url = request.url();
 
-                // نطبع بس الـ API calls (مش الصور والـ css والـ js)
-                if (type !== 'xhr' && type !== 'fetch') return;
-                if (urlFilter && !urlFilter.test(request.url())) return;
+                if (!['xhr', 'fetch'].includes(request.resourceType())) return;
+                if (url.includes('_rsc=')) return;                      // تنقلات Next.js مش API
+                if (urlFilter && !urlFilter.test(url)) return;
 
-                const status = response.status();
-                const icon = status >= 400 ? '❌' : '✅';
+                const contentType = response.headers()['content-type'] ?? '';
+                const isFile = /spreadsheet|octet-stream|excel|pdf|image|video/.test(contentType);
+                if (!isFile && !contentType.includes('json')) return;   // API = JSON بس
+
+                await response.finished();          // عشان الوقت (responseEnd) يبقى متحسب
                 const timing = request.timing();
-                const time = timing.responseEnd > 0 ? `${Math.round(timing.responseEnd)} ms` : '-';
-
-                // Request body (لو multipart – رفع ملف – نطبع ملخص بس)
-                const contentType = request.headers()['content-type'] ?? '';
-                let reqBody = '';
-                if (contentType.includes('multipart/form-data')) {
-                    reqBody = `<multipart/form-data – ${request.postDataBuffer()?.length ?? 0} bytes (file upload)>`;
-                } else {
-                    reqBody = request.postData() ?? '';
-                    try { reqBody = JSON.stringify(JSON.parse(reqBody), null, 2); } catch { /* not JSON */ }
-                }
-
-                // Response body (لو ملف – تنزيل – نطبع نوعه بس)
-                const resType = response.headers()['content-type'] ?? '';
-                let resBody = '';
-                if (/spreadsheet|octet-stream|excel/.test(resType)) {
-                    resBody = `<binary file – ${resType}>`;
-                } else {
-                    try {
-                        resBody = JSON.stringify(await response.json(), null, 2);
-                    } catch {
-                        try { resBody = await response.text(); }
-                        catch { resBody = '<no body>'; }
-                    }
-                }
-                if (resBody.length > maxBodyLength)
-                    resBody = resBody.slice(0, maxBodyLength) + '\n... (truncated)';
-
-                // إخفاء التوكن والكوكيز
-                const headers = { ...request.headers() };
-                if (headers['authorization']) headers['authorization'] = '***';
-                if (headers['cookie']) headers['cookie'] = '***';
-
-                console.log(
-                    [
-                        '',
-                        '='.repeat(80),
-                        `${icon}  ${request.method()}  ${request.url()}`,
-                        `Status : ${status} ${response.statusText()}   Time: ${time}`,
-                        '--- Request Headers ---',
-                        JSON.stringify(headers, null, 2),
-                        reqBody ? `--- Request Body ---\n${reqBody}` : '',
-                        '--- Response Body ---',
-                        resBody,
-                        '='.repeat(80),
-                    ]
-                        .filter(Boolean)
-                        .join('\n')
-                );
+                printApiCall({
+                    method: request.method(),
+                    url,
+                    status: response.status(),
+                    statusText: response.statusText(),
+                    timeMs: timing.responseEnd > 0 ? Math.round(timing.responseEnd) : undefined,
+                    requestBody: request.postData(),
+                    requestContentType: request.headers()['content-type'] ?? '',
+                    responseText: isFile ? `<file download – ${contentType}>` : await response.text(),
+                });
             } catch {
                 // لو الصفحة اتقفلت أثناء القراءة نتجاهل الخطأ
             }

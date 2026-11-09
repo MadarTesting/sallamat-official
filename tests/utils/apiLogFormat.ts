@@ -1,0 +1,201 @@
+/**
+ * طباعة الـ API calls في التيرمنال بشكل مختصر زي تابات الـ DevTools:
+ *
+ *   ━━━ ✅ GET 200 OK · 312 ms ━━━
+ *   https://api.demo.sallamaat.com/api/campaign?...
+ *   ▸ Payload   ➜ الـ query params أو الـ request body
+ *   ▸ Preview   ➜ ملخص سريع للـ response (المفاتيح + عدد العناصر)
+ *   ▸ Response  ➜ الـ JSON نفسه (بيتقص لو طويل)
+ *
+ * - مفيش headers (كانت أغلب الكلام)
+ * - نفس الـ call لو اتكرر ورا بعض (نفس الـ URL والـ status والـ body) بيتطبع مرة واحدة بس
+ * - الباسوورد والتوكن بيتخفوا (SHOW_SECRETS=1 لعرضهم)
+ * - طول الـ Response: API_LOG_BODY=3000 (الافتراضي 1200)
+ */
+
+const COLOR = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    cyan: '\x1b[36m',
+};
+
+const SENSITIVE_KEYS = ['password', 'csrftoken', 'token', 'access_token', 'refresh_token', 'authorization'];
+const SHOW_SECRETS = process.env.SHOW_SECRETS === '1';
+const MAX_RESPONSE = Number(process.env.API_LOG_BODY) || 1200;
+const DEDUPE_WINDOW_MS = 5000;
+
+// ============= Helpers =============
+
+export function maskSecrets(value: unknown): unknown {
+    if (SHOW_SECRETS || value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(maskSecrets);
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([k, v]) =>
+            SENSITIVE_KEYS.includes(k.toLowerCase()) ? [k, '********'] : [k, maskSecrets(v)],
+        ),
+    );
+}
+
+function tryParseJson(text: string): unknown {
+    try { return JSON.parse(text); } catch { return undefined; }
+}
+
+function statusColor(status: number): string {
+    if (status >= 500) return COLOR.red;
+    if (status >= 400) return COLOR.yellow;
+    if (status >= 300) return COLOR.cyan;
+    return COLOR.green;
+}
+
+function indent(text: string, spaces = 2): string {
+    const pad = ' '.repeat(spaces);
+    return text.split('\n').map((l) => pad + l).join('\n');
+}
+
+function short(value: unknown, max = 60): string {
+    const s = typeof value === 'string' ? `"${value}"` : String(value);
+    return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
+// ============= Payload =============
+
+/** الـ Payload: الـ query params (GET) و/أو الـ request body */
+export function buildPayload(url: string, body?: string | null, contentType = ''): string {
+    const lines: string[] = [];
+
+    const params = new URL(url, 'http://localhost').searchParams;
+    const query: Record<string, string | string[]> = {};
+    params.forEach((v, k) => {
+        const prev = query[k];
+        query[k] = prev === undefined ? v : Array.isArray(prev) ? [...prev, v] : [prev, v];
+    });
+    if (Object.keys(query).length) {
+        for (const [k, v] of Object.entries(query)) lines.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+    }
+
+    if (body) {
+        if (contentType.includes('multipart/form-data')) {
+            lines.push(`<file upload – ${body.length} bytes>`);
+        } else {
+            const json = tryParseJson(body);
+            lines.push(json !== undefined ? JSON.stringify(maskSecrets(json), null, 2) : body.slice(0, 500));
+        }
+    }
+
+    return lines.length ? lines.join('\n') : '(none)';
+}
+
+// ============= Preview =============
+
+function describe(value: unknown): string {
+    if (Array.isArray(value)) return `Array(${value.length})`;
+    if (value && typeof value === 'object') {
+        const keys = Object.keys(value);
+        return `{ ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? ', …' : ''} }`;
+    }
+    return short(value);
+}
+
+/** الـ Preview: ملخص – كل مفتاح ونوعه/قيمته، ولو فيه List بنعرض أول عنصر مختصر */
+export function buildPreview(json: unknown): string {
+    if (json === undefined) return '(not JSON)';
+    if (Array.isArray(json)) {
+        return [`Array(${json.length})`, json.length ? `[0]: ${describe(json[0])}` : ''].filter(Boolean).join('\n');
+    }
+    if (!json || typeof json !== 'object') return short(json, 200);
+
+    const lines: string[] = [];
+    for (const [key, value] of Object.entries(maskSecrets(json) as Record<string, unknown>)) {
+        lines.push(`${key}: ${describe(value)}`);
+        // مستوى واحد جوه (زي data: { data: [...], total: 103 })
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            for (const [k2, v2] of Object.entries(value as Record<string, unknown>).slice(0, 8)) {
+                lines.push(`  ${k2}: ${describe(v2)}`);
+            }
+        }
+        if (Array.isArray(value) && value.length) lines.push(`  [0]: ${describe(value[0])}`);
+    }
+    return lines.join('\n');
+}
+
+// ============= Response =============
+
+export function buildResponse(text: string): string {
+    if (!text) return '(empty)';
+    const json = tryParseJson(text);
+    const pretty = json !== undefined ? JSON.stringify(maskSecrets(json), null, 2) : text;
+    return pretty.length > MAX_RESPONSE
+        ? pretty.slice(0, MAX_RESPONSE) + `\n… (truncated – ${pretty.length} chars, set API_LOG_BODY to see more)`
+        : pretty;
+}
+
+// ============= Print once =============
+
+const recentlyPrinted = new Map<string, number>();
+
+/** true لو نفس الـ call اتطبع في آخر 5 ثواني (الموقع بيبعت نفس الـ request مرتين) */
+function isDuplicate(key: string): boolean {
+    const now = Date.now();
+    for (const [k, t] of recentlyPrinted) if (now - t > DEDUPE_WINDOW_MS) recentlyPrinted.delete(k);
+    if (recentlyPrinted.has(key)) return true;
+    recentlyPrinted.set(key, now);
+    return false;
+}
+
+export type ApiCall = {
+    label?: string;          // اسم اختياري فوق الـ call (للـ API tests)
+    method: string;
+    url: string;
+    status: number;
+    statusText?: string;
+    timeMs?: number;
+    requestBody?: string | null;
+    requestContentType?: string;
+    responseText: string;
+    resultLine?: string;     // سطر نتيجة إضافي (مثلًا ✅ SUCCESS – ...)
+    resultOk?: boolean;
+};
+
+/** بيبني النص (plain) – بيرجّع undefined لو الـ call مكرر */
+export function formatApiCall(call: ApiCall, { dedupe = true } = {}): { plain: string; colored: string } | undefined {
+    const key = `${call.method} ${call.url} ${call.status} ${call.responseText.length}:${call.responseText.slice(0, 200)}`;
+    if (dedupe && isDuplicate(key)) return undefined;
+
+    const icon = call.status >= 400 ? '❌' : '✅';
+    const time = call.timeMs !== undefined ? ` · ${call.timeMs} ms` : '';
+    const head = `${icon} ${call.method} ${call.status} ${call.statusText ?? ''}`.trimEnd() + time;
+    const json = tryParseJson(call.responseText);
+
+    const sections = (c: (s: string) => string) => [
+        c('▸ Payload'), indent(buildPayload(call.url, call.requestBody, call.requestContentType)),
+        c('▸ Preview'), indent(buildPreview(json)),
+        c('▸ Response'), indent(buildResponse(call.responseText)),
+    ];
+
+    const plain = [
+        `━━━ ${call.label ? call.label + ' · ' : ''}${head} ━━━`,
+        decodeURIComponent(call.url),
+        call.resultLine ?? '',
+        ...sections((s) => s),
+    ].filter(Boolean).join('\n');
+
+    const colored = [
+        `${COLOR.bold}${statusColor(call.status)}━━━ ${call.label ? call.label + ' · ' : ''}${head} ━━━${COLOR.reset}`,
+        `${COLOR.dim}${decodeURIComponent(call.url)}${COLOR.reset}`,
+        call.resultLine ? `${COLOR.bold}${call.resultOk ? COLOR.green : COLOR.red}${call.resultLine}${COLOR.reset}` : '',
+        ...sections((s) => `${COLOR.cyan}${s}${COLOR.reset}`),
+    ].filter(Boolean).join('\n');
+
+    return { plain, colored };
+}
+
+/** بيطبع الـ call في التيرمنال مرة واحدة بس */
+export function printApiCall(call: ApiCall): string | undefined {
+    const out = formatApiCall(call);
+    if (out) console.log('\n' + out.colored + '\n');
+    return out?.plain;
+}
