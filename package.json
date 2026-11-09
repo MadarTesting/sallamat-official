@@ -7,6 +7,7 @@
     "test": "playwright test",
     "test:auth": "playwright test tests/specs/auth",
     "test:campaigns": "playwright test tests/specs/campaigns",
+    "test:filters": "playwright test tests/specs/campaigns/manual-filters",
     "test:templates": "playwright test tests/specs/templates",
     "test:ads": "playwright test tests/specs/ads",
     "test:customers": "playwright test tests/specs/customers",

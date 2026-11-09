@@ -9,6 +9,14 @@ tests/
 ├── specs/                     # Test files, grouped by feature
 │   ├── auth/                  # Login (UI) + Login API
 │   ├── campaigns/             # Manual campaign, Auto campaign
+│   │   └── manual-filters/    # Manual campaigns list: search + each filter in its own file
+│   │       ├── 01-search.spec.ts
+│   │       ├── 02-status.spec.ts
+│   │       ├── 03-template.spec.ts
+│   │       ├── 04-template-status.spec.ts
+│   │       ├── 05-group.spec.ts
+│   │       ├── 06-date-range.spec.ts
+│   │       └── 07-sorting.spec.ts
 │   ├── templates/             # Create template: text / image / video / file
 │   ├── ads/                   # Create ad (صندوق الإعلان)
 │   └── customers/             # Upload customers via Excel
@@ -16,10 +24,13 @@ tests/
 │   ├── BasePage.ts            # Shared: page + Postman-style API logging
 │   ├── LoginPage.ts
 │   ├── ManualCampaignPage.ts
+│   ├── ManualCampaignsListPage.ts   # Search box, filters, campaigns table
 │   ├── AutoCampaignPage.ts
 │   ├── TemplatePage.ts
 │   ├── AdPage.ts
 │   └── CustomersPage.ts
+├── fixtures/
+│   └── manualCampaignsList.fixture.ts  # Logs in once per worker, opens the list page
 ├── utils/
 │   ├── apiLogger.ts           # Logger for API tests (request context)
 │   ├── authResult.ts          # Interprets auth API responses
@@ -41,7 +52,8 @@ npx playwright install
 |---|---|
 | `npm test` | All tests |
 | `npm run test:auth` | Login UI + API |
-| `npm run test:campaigns` | Manual + auto campaigns |
+| `npm run test:campaigns` | Manual + auto campaigns (incl. filters) |
+| `npm run test:filters` | Manual campaigns search + filters only |
 | `npm run test:templates` | All template types |
 | `npm run test:ads` | Create ad |
 | `npm run test:customers` | Customers Excel upload |
@@ -55,5 +67,6 @@ Run a single file: `npx playwright test tests/specs/ads/createAd.spec.ts`
 
 - **API logs in the terminal** – every UI test calls `page.enableApiLogging()` and prints each API call (method, URL, status, time, headers, bodies), Postman-style. Tokens and cookies are masked.
 - **Browser stays open after the run** – UI specs call `page.pause()` in `afterEach`; press **Resume** in the Playwright Inspector to finish.
+- **Skip the pause / hide the browser** – set `NO_PAUSE=1` to skip `page.pause()` in the filter tests, and `HEADLESS=1` to run without showing the browser (both are automatic on CI). PowerShell: `$env:NO_PAUSE="1"; $env:HEADLESS="1"; npm run test:filters`
 - **Report after every run** – `playwright-report/index.html` opens automatically (pass or fail).
 - **On failure** – screenshot, video and trace are saved and attached to the report (`test-results/`).

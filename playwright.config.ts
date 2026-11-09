@@ -35,7 +35,8 @@ export default defineConfig({
     // baseURL: 'http://localhost:3000',
 
     /* البراوزر يفضل مفتوح ومرئي أثناء الرن */
-    headless: false,
+    /* HEADLESS=1 أو CI ➜ من غير ما البراوزر يظهر */
+    headless: !!process.env.CI || process.env.HEADLESS === '1',
 
     /* لو التيست فشل: سكرين شوت + فيديو + trace بيتحفظوا ويظهروا في الريبورت */
     screenshot: 'only-on-failure',
