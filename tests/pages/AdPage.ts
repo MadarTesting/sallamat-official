@@ -1,0 +1,189 @@
+import { expect, type Locator, type Page } from '@playwright/test';
+import path from 'path';
+
+export class AdPage {
+
+    // ============= Variables =============
+    readonly page: Page;
+
+    // ============= Locators =============
+    readonly adBoxLink: Locator;          // صندوق الإعلان (السيدبار)
+    readonly createAdButton: Locator;     // إنشاء إعلان
+    readonly firstOption: Locator;        // أول div جوه الـ main
+    readonly nextStepButton: Locator;     // الخطوة القادمة
+    readonly launchAdButton: Locator;     // إطلاق الإعلان
+    readonly imageUploadArea: Locator;    // صورة الإعلان – نفس اللوكيتور main/div[1]
+    readonly imageFileInput: Locator;     // الـ <input type="file"> بتاع "صورة الإعلان" جوه main/div[1]
+    readonly imageDropZone: Locator;      // مربع "اضغط هنا لرفع الصورة" تحت "صورة الإعلان"
+
+    // ============= Constructor =============
+    constructor(page: Page) {
+        this.page = page;
+
+        this.adBoxLink = page.locator("//p[contains(text(),'صندوق الإعلان')]");
+        this.createAdButton = page.locator("//button[contains(text(),'إنشاء إعلان')]");
+        this.firstOption = page.locator(
+            "//body/div[@dir='rtl']/main[@class='min-h-screen bg-primary-foreground']/div[1]"
+        );
+        this.nextStepButton = page.locator("//button[contains(text(),'الخطوة القادمة')]");
+        this.launchAdButton = page.locator("//button[contains(text(),'إطلاق الإعلان')]");
+        // رفع الصورة بيتم في نفس الإيلمنت main/div[1]
+        this.imageUploadArea = this.firstOption;
+        // في div[1] فيه مربعين رفع – المطلوب هو اللي تحت label "صورة الإعلان *"
+        this.imageFileInput = this.imageUploadArea
+            .locator("xpath=.//*[contains(text(),'صورة الإعلان')]/following::input[@type='file'][1]")
+            .first();
+        this.imageDropZone = this.imageUploadArea
+            .locator("xpath=.//*[contains(text(),'صورة الإعلان')]/following::*[contains(text(),'اضغط هنا لرفع الصورة')][1]")
+            .first();
+    }
+
+    // ============= API Logging (Postman-like) =============
+    // بيطبع في التيرمنال كل Request/Response (Method + URL + Status + Time + Headers + Body)
+    enableApiLogging(options: { urlFilter?: RegExp; maxBodyLength?: number } = {}) {
+        const { urlFilter, maxBodyLength = 3000 } = options;
+
+        this.page.on('response', async (response) => {
+            try {
+                const request = response.request();
+                const type = request.resourceType();
+
+                // نطبع بس الـ API calls (مش الصور والـ css والـ js)
+                if (type !== 'xhr' && type !== 'fetch') return;
+                if (urlFilter && !urlFilter.test(request.url())) return;
+
+                const status = response.status();
+                const icon = status >= 400 ? '❌' : '✅';
+                const timing = request.timing();
+                const time = timing.responseEnd > 0 ? `${Math.round(timing.responseEnd)} ms` : '-';
+
+                // Request body
+                let reqBody = request.postData() ?? '';
+                try { reqBody = JSON.stringify(JSON.parse(reqBody), null, 2); } catch { /* not JSON */ }
+
+                // Response body
+                let resBody = '';
+                try {
+                    resBody = JSON.stringify(await response.json(), null, 2);
+                } catch {
+                    try { resBody = await response.text(); }
+                    catch { resBody = '<no body>'; }
+                }
+                if (resBody.length > maxBodyLength)
+                    resBody = resBody.slice(0, maxBodyLength) + '\n... (truncated)';
+
+                // إخفاء التوكن والكوكيز
+                const headers = { ...request.headers() };
+                if (headers['authorization']) headers['authorization'] = '***';
+                if (headers['cookie']) headers['cookie'] = '***';
+
+                console.log(
+                    [
+                        '',
+                        '='.repeat(80),
+                        `${icon}  ${request.method()}  ${request.url()}`,
+                        `Status : ${status} ${response.statusText()}   Time: ${time}`,
+                        '--- Request Headers ---',
+                        JSON.stringify(headers, null, 2),
+                        reqBody ? `--- Request Body ---\n${reqBody}` : '',
+                        '--- Response Body ---',
+                        resBody,
+                        '='.repeat(80),
+                    ]
+                        .filter(Boolean)
+                        .join('\n')
+                );
+            } catch {
+                // لو الصفحة اتقفلت أثناء القراءة نتجاهل الخطأ
+            }
+        });
+    }
+
+    // ============= Actions =============
+
+    /** فتح صندوق الإعلان من السيدبار */
+    async openAdBox() {
+        await expect(this.adBoxLink).toBeVisible({ timeout: 15000 });
+        await this.adBoxLink.click();
+    }
+
+    /** الضغط على إنشاء إعلان */
+    async clickCreateAd() {
+        await expect(this.createAdButton).toBeVisible({ timeout: 15000 });
+        await this.createAdButton.click();
+    }
+
+    /** الضغط على أول div في الـ main */
+    async selectFirstOption() {
+        await expect(this.firstOption).toBeVisible({ timeout: 15000 });
+        await this.firstOption.click();
+    }
+
+    /**
+     * رفع صورة الإعلان في الإيلمنت main/div[1] (PNG/JPG، حتى 2MB، 800x600).
+     * الرفع بيتم في مربع "صورة الإعلان *" (التاني) مش المربع الأول.
+     * 1) لو في <input type="file"> بعد label "صورة الإعلان" ➜ نرفع عليه مباشرة.
+     * 2) غير كده ➜ نضغط على مربع "اضغط هنا لرفع الصورة" اللي تحته ونستنى الـ File Chooser.
+     */
+    async uploadImage(filePath: string) {
+        const absolutePath = path.resolve(filePath);
+        await expect(this.imageUploadArea).toBeVisible({ timeout: 15000 });
+        await expect(this.imageDropZone).toBeVisible({ timeout: 15000 });
+        await this.imageDropZone.scrollIntoViewIfNeeded();
+
+        if (await this.imageFileInput.count() > 0) {
+            await this.imageFileInput.setInputFiles(absolutePath);
+        } else {
+            const [chooser] = await Promise.all([
+                this.page.waitForEvent('filechooser', { timeout: 15000 }),
+                this.imageDropZone.click(),
+            ]);
+            await chooser.setFiles(absolutePath);
+        }
+
+        // التأكد إن مربع "صورة الإعلان" اتملى (النص "اضغط هنا" اختفى)
+        await expect(this.imageDropZone).toBeHidden({ timeout: 15000 }).catch(() => {
+            console.log('⚠️  مربع صورة الإعلان لسه ظاهر – راجع إن الصورة اترفعت');
+        });
+
+        // استنى الصورة تترفع قبل "الخطوة القادمة"
+        await this.page.waitForLoadState('networkidle').catch(() => {});
+        console.log(`🖼️  Uploaded image: ${absolutePath}`);
+    }
+
+    /** الخطوة القادمة */
+    async clickNextStep() {
+        await expect(this.nextStepButton).toBeVisible({ timeout: 15000 });
+        await expect(this.nextStepButton).toBeEnabled({ timeout: 15000 });
+        await this.nextStepButton.click();
+        // استنى الخطوة اللي بعدها تحمّل قبل الضغطة الجاية
+        await this.page.waitForLoadState('networkidle').catch(() => {});
+    }
+
+    /** إطلاق الإعلان */
+    async launchAd() {
+        await expect(this.launchAdButton).toBeVisible({ timeout: 15000 });
+        await expect(this.launchAdButton).toBeEnabled({ timeout: 15000 });
+        await this.launchAdButton.click();
+    }
+
+    /**
+     * Flow كامل:
+     * صندوق الإعلان ➜ إنشاء إعلان ➜ div[1] ➜ رفع صورة في div[1] ➜
+     * الخطوة القادمة ×4 ➜ إطلاق الإعلان
+     */
+    async createAd(imagePath = 'tests/fixtures/ad-image.png', nextSteps = 4) {
+        await this.openAdBox();
+        await this.clickCreateAd();
+
+        await this.selectFirstOption();
+        await this.uploadImage(imagePath);
+
+        for (let i = 1; i <= nextSteps; i++) {
+            console.log(`➡️  الخطوة القادمة (${i}/${nextSteps})`);
+            await this.clickNextStep();
+        }
+
+        await this.launchAd();
+    }
+}

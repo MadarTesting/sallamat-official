@@ -1,7 +1,7 @@
 {
     "validUser": {
         "email": "shady_amin@madaarsolutions.com",
-        "password": "123456789"
+        "password": "0123456789"
     },
     "invalidUser": {
         "email": "shady_amin@madaarsolutions.com",
