@@ -32,6 +32,7 @@
 | **تسجيل الدخول** | فتح صفحة اللوجين، دخول صحيح، باسوورد غلط، حقول فاضية + نفس الحالات على مستوى الـ API |
 | **الحملات اليدوية** | إنشاء حملة يدوية كاملة (اسم ← جمهور ← قالب ← إنشاء) |
 | **فلاتر الحملات اليدوية** | مربع البحث + كل فلتر لوحده: الحالة، القالب، حالة القالب، المجموعة، نطاق التاريخ، الترتيب الزمني |
+| **فلاتر الحملات التلقائية** | مربع البحث + كل فلتر لوحده: الحالة، الحدث، حالة القالب، نطاق التاريخ، الترتيب الزمني |
 | **الحملات التلقائية** | إنشاء حملة تلقائية (اسم ← وصف ← حدث ← قالب ← تفعيل) |
 | **القوالب** | إنشاء قالب بنص فقط / صورة / فيديو / ملف PDF |
 | **صندوق الإعلان** | إنشاء إعلان مع رفع صورة الإعلان ← الخطوات ← إطلاق الإعلان |
@@ -51,14 +52,21 @@ sallamat-official/
 │   │   ├── campaigns/
 │   │   │   ├── manualCampaign.spec.ts
 │   │   │   ├── autoCampaign.spec.ts
-│   │   │   └── manual-filters/
+│   │   │   ├── manual-filters/         # فلاتر الحملات اليدوية
+│   │   │   │   ├── 01-search.spec.ts
+│   │   │   │   ├── 02-status.spec.ts
+│   │   │   │   ├── 03-template.spec.ts
+│   │   │   │   ├── 04-template-status.spec.ts
+│   │   │   │   ├── 05-group.spec.ts
+│   │   │   │   ├── 06-date-range.spec.ts
+│   │   │   │   └── 07-sorting.spec.ts
+│   │   │   └── auto-filters/           # فلاتر الحملات التلقائية
 │   │   │       ├── 01-search.spec.ts
 │   │   │       ├── 02-status.spec.ts
-│   │   │       ├── 03-template.spec.ts
+│   │   │       ├── 03-event.spec.ts
 │   │   │       ├── 04-template-status.spec.ts
-│   │   │       ├── 05-group.spec.ts
-│   │   │       ├── 06-date-range.spec.ts
-│   │   │       └── 07-sorting.spec.ts
+│   │   │       ├── 05-date-range.spec.ts
+│   │   │       └── 06-sorting.spec.ts
 │   │   ├── templates/
 │   │   │   ├── createTemplate.text.spec.ts
 │   │   │   ├── createTemplate.image.spec.ts
@@ -72,13 +80,15 @@ sallamat-official/
 │   │   ├── BasePage.ts
 │   │   ├── LoginPage.ts
 │   │   ├── ManualCampaignPage.ts
+│   │   ├── CampaignsListPage.ts
 │   │   ├── ManualCampaignsListPage.ts
+│   │   ├── AutoCampaignsListPage.ts
 │   │   ├── AutoCampaignPage.ts
 │   │   ├── TemplatePage.ts
 │   │   ├── AdPage.ts
 │   │   └── CustomersPage.ts
 │   ├── fixtures/                   # Playwright fixtures (تجهيز مشترك قبل التستات)
-│   │   └── manualCampaignsList.fixture.ts
+│   │   └── campaignsList.fixture.ts
 │   ├── utils/                      # أدوات مساعدة
 │   │   ├── apiLogFormat.ts
 │   │   ├── apiLogger.ts
@@ -137,6 +147,20 @@ sallamat-official/
 
 > لو حالة مفيهاش حملات في الداتا، التيست بينجح بس بيتكتب عليه ملاحظة **"No campaigns"** في الريبورت.
 
+#### `specs/campaigns/auto-filters/` – البحث والفلاتر في صفحة الحملات التلقائية
+
+نفس فكرة فلاتر الحملات اليدوية بالظبط (وبتستخدم نفس الكود المشترك)، بس على `GET /api/automated-campaigns?filter[...]`.
+الفرق إن الصفحة دي فيها فلتر **الحدث** ومفيهاش فلتر القالب ولا المجموعة.
+
+| الملف | بيعمل إيه |
+|---|---|
+| `01-search.spec.ts` | البحث باسم حملة موجودة، اسم مش موجود، مسح البحث |
+| `02-status.spec.ts` | قائمة الحالات صحيحة + تيست لكل حالة من الـ 3. عمود الحالة في الجدول **زرار** مش نص، فبيتأكد من الاتنين: الـ API (`status`) والزرار في الجدول: مفعلة ← `active` وزرار **إيقاف**، غير مفعلة ← `inactive` وزرار **تشغيل**، متوقفة ← `stopped` وزرار **تشغيل** |
+| `03-event.spec.ts` | قائمة الأحداث صحيحة + تيست لكل حدث من الـ 4: تم إنشاء عميل، إنشاء سلة مشتريات متروكة، تم إنشاء طلب، تحديث حالة الطلب (بيتأكد من `event_name` في الـ API وعمود الحدث في الجدول) |
+| `04-template-status.spec.ts` | قائمة حالات القالب صحيحة + تيست لكل حالة من الـ 5 (لاحظ: هنا مكتوبة **متوقف مؤقتاً** بالتنوين، وفي اليدوية **متوقف مؤقتا** من غير تنوين) |
+| `05-date-range.spec.ts` | نطاق تاريخ من أول الشهر لحد النهارده – على عمود **تاريخ الإنشاء** |
+| `06-sorting.spec.ts` | من الأقدم للأحدث، الأحدث للأقدم هو الافتراضي، والرجوع للأحدث بيرجّع نفس الترتيب |
+
 #### `specs/templates/` – القوالب
 
 4 ملفات، كل واحد بينشئ قالب بنوع مرفق مختلف باستخدام `TemplatePage.createTemplate()`:
@@ -176,7 +200,9 @@ sallamat-official/
 | `BasePage.ts` | **الأساس** – كل الصفحات بتورث منه | `enableApiLogging()`: بيطبع كل API call في التيرمنال (Payload / Preview / Response) مرة واحدة |
 | `LoginPage.ts` | صفحة تسجيل الدخول | `goto()`, `login(email, password)`, `expectLoggedIn()`, `expectStillOnLogin()` |
 | `ManualCampaignPage.ts` | إنشاء حملة يدوية | `openManualCampaigns()`, `fillCampaignName()`, `selectAudience()`, `selectTemplate()`, `clickCreateCampaign()` |
-| `ManualCampaignsListPage.ts` | قائمة الحملات اليدوية (البحث + الفلاتر + الجدول) | `open()`, `search()`, `selectFilter(label, option)`, `selectDateRange(from, to)`, `getColumnValues()`, `expectAllRows()`, `printTable()` + ثابت `COLUMN` بأرقام أعمدة الجدول |
+| `CampaignsListPage.ts` | **الأساس المشترك** لقوائم الحملات (اليدوية والتلقائية) – كل الكود بتاع البحث والفلاتر والجدول هنا، والصفحتين اللي تحت بيورثوا منه | `open()`, `search()`, `selectFilter(label, option)`, `getFilterOptions()`, `selectDateRange(from, to)`, `getColumnValues()`, `getNames()`, `expectAllRows()`, `printTable()` + `campaignsFrom(res)` بيقرا الحملات من الـ Response |
+| `ManualCampaignsListPage.ts` | قائمة الحملات اليدوية | بيحدد الرابط والـ API ومربع البحث + ثابت `COLUMN` بأرقام أعمدة الجدول |
+| `AutoCampaignsListPage.ts` | قائمة الحملات التلقائية | بيحدد الرابط والـ API ومربع البحث + `AUTO_COLUMN` (أرقام الأعمدة)، `AUTO_STATUS` (الحالة ← قيمة الـ API ونص الزرار)، `AUTO_EVENTS`، `AUTO_TEMPLATE_STATUSES` |
 | `AutoCampaignPage.ts` | إنشاء حملة تلقائية | `createAutoCampaign()`, `selectTemplate()` (بيعلّم على الشيك بوكس), `activateCampaign()` |
 | `TemplatePage.ts` | إنشاء قالب | `createTemplate({ type, filePath, ... })`, `selectAttachmentType()`, `submitTemplate()` |
 | `AdPage.ts` | صندوق الإعلان | `createAd(imagePath)`, `uploadImage()`, `clickNextStep()`, `launchAd()` |
@@ -190,14 +216,18 @@ sallamat-official/
 
 | الملف | بيعمل إيه |
 |---|---|
-| `manualCampaignsList.fixture.ts` | بيستخدمه ملفات `manual-filters/`. **بيعمل login مرة واحدة بس لكل worker** ويحفظ الـ session (`storageState`) ويعيد استخدامها في كل التستات – لأن الموقع بيرفض logins كتير ورا بعض. بعدين بيفعّل طباعة الـ APIs ويفتح صفحة الحملات اليدوية من غير فلاتر، ويدّي التيست `listPage` جاهزة. بعد التيست بيعمل `page.pause()` (إلا لو `CI` أو `NO_PAUSE=1`) |
+| `campaignsList.fixture.ts` | بيستخدمه ملفات `manual-filters/` و`auto-filters/`. **بيعمل login مرة واحدة بس لكل worker** ويحفظ الـ session (`storageState`) ويعيد استخدامها في كل التستات – لأن الموقع بيرفض logins كتير ورا بعض. بعدين بيفعّل طباعة الـ APIs ويفتح الصفحة من غير فلاتر، ويدّي التيست الصفحة جاهزة: `manualList` (الحملات اليدوية) أو `autoList` (الحملات التلقائية). بعد التيست بيعمل `page.pause()` (إلا لو `CI` أو `NO_PAUSE=1`) |
 
 الاستخدام في التيست:
 ```ts
-import { test, expect } from '../../../fixtures/manualCampaignsList.fixture';
+import { test, expect } from '../../../fixtures/campaignsList.fixture';
 
-test('...', async ({ listPage }) => {
-    await listPage.selectFilter('الحالة', 'مكتملة');
+test('manual', async ({ manualList }) => {
+    await manualList.selectFilter('الحالة', 'مكتملة');
+});
+
+test('auto', async ({ autoList }) => {
+    await autoList.selectFilter('الحدث', 'تم إنشاء طلب');
 });
 ```
 
@@ -273,7 +303,9 @@ npx playwright install
 | `npm test` | كل التستات |
 | `npm run test:auth` | اللوجين (UI + API) |
 | `npm run test:campaigns` | الحملات اليدوية والتلقائية والفلاتر |
-| `npm run test:filters` | البحث والفلاتر بس |
+| `npm run test:filters` | البحث والفلاتر (اليدوية + التلقائية) |
+| `npm run test:filters:manual` | فلاتر الحملات اليدوية بس |
+| `npm run test:filters:auto` | فلاتر الحملات التلقائية بس |
 | `npm run test:templates` | كل أنواع القوالب |
 | `npm run test:ads` | الإعلان |
 | `npm run test:customers` | رفع العملاء بالإكسل |

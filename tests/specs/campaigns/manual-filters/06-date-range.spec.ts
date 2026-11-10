@@ -1,4 +1,4 @@
-import { test, expect } from '../../../fixtures/manualCampaignsList.fixture';
+import { test, expect } from '../../../fixtures/campaignsList.fixture';
 import { COLUMN } from '../../../pages/ManualCampaignsListPage';
 
 // ============================================================
@@ -10,20 +10,20 @@ const fmt = (d: Date) =>
 
 test.describe('Manual Campaigns – Date range filter', () => {
 
-    test('date range from the 1st of this month until today', async ({ listPage }) => {
+    test('date range from the 1st of this month until today', async ({ manualList }) => {
         const today = new Date();
         const from = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
         const to = fmt(today);
 
-        const res = await listPage.selectDateRange(from, to);
+        const res = await manualList.selectDateRange(from, to);
         expect(res.status()).toBe(200);
         const url = decodeURIComponent(res.url());
         expect(url).toContain(`filter[date][from]=${from}`);
         expect(url).toContain(`filter[date][to]=${to}`);
-        await expect(listPage.filterTrigger('نطاق التاريخ')).toContainText(`${from} - ${to}`);
+        await expect(manualList.filterTrigger('نطاق التاريخ')).toContainText(`${from} - ${to}`);
 
-        await listPage.printTable(`Date ${from} ➜ ${to}`);
-        const dates = await listPage.getColumnValues(COLUMN.sendDate);
+        await manualList.printTable(`Date ${from} ➜ ${to}`);
+        const dates = await manualList.getColumnValues(COLUMN.sendDate);
         for (const d of dates) {
             const day = d.slice(0, 10);
             expect(day >= from && day <= to, `Row date ${d} is outside ${from} ➜ ${to}`).toBe(true);

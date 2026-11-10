@@ -1,4 +1,4 @@
-import { test, expect } from '../../../fixtures/manualCampaignsList.fixture';
+import { test, expect } from '../../../fixtures/campaignsList.fixture';
 import { COLUMN } from '../../../pages/ManualCampaignsListPage';
 
 // ============================================================
@@ -9,19 +9,19 @@ const STATUSES = ['مسودة', 'مكتملة', 'جاري الارسال', 'مت
 
 test.describe('Manual Campaigns – Status filter', () => {
 
-    test('status filter lists all expected options', async ({ listPage }) => {
-        const options = await listPage.getFilterOptions('الحالة');
+    test('status filter lists all expected options', async ({ manualList }) => {
+        const options = await manualList.getFilterOptions('الحالة');
         expect(options).toEqual(STATUSES);
     });
 
     for (const status of STATUSES) {
-        test(`status = ${status}`, async ({ listPage }) => {
-            const res = await listPage.selectFilter('الحالة', status);
+        test(`status = ${status}`, async ({ manualList }) => {
+            const res = await manualList.selectFilter('الحالة', status);
             expect(res.status()).toBe(200);
-            await expect(listPage.filterTrigger('الحالة')).toContainText(status);
+            await expect(manualList.filterTrigger('الحالة')).toContainText(status);
 
-            await listPage.printTable(`Status = ${status}`);
-            const hasRows = await listPage.expectAllRows(COLUMN.status, status);
+            await manualList.printTable(`Status = ${status}`);
+            const hasRows = await manualList.expectAllRows(COLUMN.status, status);
             if (!hasRows) test.info().annotations.push({ type: 'note', description: `No campaigns with status "${status}"` });
         });
     }

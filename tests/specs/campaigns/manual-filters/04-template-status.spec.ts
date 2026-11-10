@@ -1,4 +1,4 @@
-import { test, expect } from '../../../fixtures/manualCampaignsList.fixture';
+import { test, expect } from '../../../fixtures/campaignsList.fixture';
 import { COLUMN } from '../../../pages/ManualCampaignsListPage';
 
 // ============================================================
@@ -8,19 +8,19 @@ const TEMPLATE_STATUSES = ['معتمد', 'قيد الانتظار', 'متوقف 
 
 test.describe('Manual Campaigns – Template status filter', () => {
 
-    test('template status filter lists all expected options', async ({ listPage }) => {
-        const options = await listPage.getFilterOptions('حالة القالب');
+    test('template status filter lists all expected options', async ({ manualList }) => {
+        const options = await manualList.getFilterOptions('حالة القالب');
         expect(options).toEqual(TEMPLATE_STATUSES);
     });
 
     for (const status of TEMPLATE_STATUSES) {
-        test(`template status = ${status}`, async ({ listPage }) => {
-            const res = await listPage.selectFilter('حالة القالب', status);
+        test(`template status = ${status}`, async ({ manualList }) => {
+            const res = await manualList.selectFilter('حالة القالب', status);
             expect(res.status()).toBe(200);
-            await expect(listPage.filterTrigger('حالة القالب')).toContainText(status);
+            await expect(manualList.filterTrigger('حالة القالب')).toContainText(status);
 
-            await listPage.printTable(`Template status = ${status}`);
-            const hasRows = await listPage.expectAllRows(COLUMN.templateStatus, status);
+            await manualList.printTable(`Template status = ${status}`);
+            const hasRows = await manualList.expectAllRows(COLUMN.templateStatus, status);
             if (!hasRows) test.info().annotations.push({ type: 'note', description: `No campaigns with template status "${status}"` });
         });
     }
