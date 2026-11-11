@@ -64,8 +64,9 @@ function short(value: unknown, max = 60): string {
 // ============= Payload =============
 
 /** الـ Payload: الـ query params (GET) و/أو الـ request body */
-export function buildPayload(url: string, body?: string | null, contentType = ''): string {
+export function buildPayload(url: string, body?: string | null, contentType = '', note?: string): string {
     const lines: string[] = [];
+    if (note) lines.push(note);
 
     const params = new URL(url, 'http://localhost').searchParams;
     const query: Record<string, string | string[]> = {};
@@ -79,7 +80,13 @@ export function buildPayload(url: string, body?: string | null, contentType = ''
 
     if (body) {
         if (contentType.includes('multipart/form-data')) {
-            lines.push(`<file upload – ${body.length} bytes>`);
+            lines.push(...describeMultipart(body));
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+            // زي فورم اللوجين: email=...&password=... ➜ سطر لكل حقل والباسوورد متخفي
+            new URLSearchParams(body).forEach((v, k) => {
+                const hidden = !SHOW_SECRETS && SENSITIVE_KEYS.includes(k.toLowerCase());
+                lines.push(`${k}: ${hidden ? '********' : v}`);
+            });
         } else {
             const json = tryParseJson(body);
             lines.push(json !== undefined ? JSON.stringify(maskSecrets(json), null, 2) : body.slice(0, 500));
@@ -87,6 +94,34 @@ export function buildPayload(url: string, body?: string | null, contentType = ''
     }
 
     return lines.length ? lines.join('\n') : '(none)';
+}
+
+/**
+ * الـ multipart (رفع ملف): سطر لكل حقل – الملفات بالاسم والنوع والحجم، والحقول العادية بقيمتها.
+ * الـ body جاي latin1 (بايتات خام) عشان الملف نفسه، فبنرجّع أسامي الملفات لـ UTF-8 (عربي).
+ */
+function describeMultipart(raw: string): string[] {
+    const lines: string[] = [];
+    const parts = raw.split(/\r\n--[^\r\n]*/).map((p) => p.replace(/^--[^\r\n]*\r\n/, ''));
+    for (const part of parts) {
+        const sep = part.indexOf('\r\n\r\n');
+        if (sep === -1) continue;
+        const head = part.slice(0, sep);
+        const name = /name="([^"]*)"/.exec(head)?.[1];
+        if (name === undefined) continue;
+        const content = part.slice(sep + 4);
+        const filename = /filename="([^"]*)"/.exec(head)?.[1];
+        if (filename !== undefined) {
+            const type = /Content-Type:\s*([^\r\n]+)/i.exec(head)?.[1] ?? 'unknown';
+            const kb = (content.length / 1024).toFixed(1);
+            lines.push(`${name}: 📎 ${Buffer.from(filename, 'latin1').toString('utf8')} (${type}, ${kb} KB)`);
+        } else {
+            const value = Buffer.from(content, 'latin1').toString('utf8');
+            const hidden = !SHOW_SECRETS && SENSITIVE_KEYS.includes(name.toLowerCase());
+            lines.push(`${name}: ${hidden ? '********' : value.slice(0, 200)}`);
+        }
+    }
+    return lines.length ? lines : [`<multipart – ${raw.length} bytes>`];
 }
 
 // ============= Preview =============
@@ -124,12 +159,12 @@ export function buildPreview(json: unknown): string {
 
 // ============= Response =============
 
-export function buildResponse(text: string): string {
+export function buildResponse(text: string, max = MAX_RESPONSE): string {
     if (!text) return '(empty)';
     const json = tryParseJson(text);
     const pretty = json !== undefined ? JSON.stringify(maskSecrets(json), null, 2) : text;
-    return pretty.length > MAX_RESPONSE
-        ? pretty.slice(0, MAX_RESPONSE) + `\n… (truncated – ${pretty.length} chars, set API_LOG_BODY to see more)`
+    return pretty.length > max
+        ? pretty.slice(0, max) + `\n… (truncated – ${pretty.length} chars, set API_LOG_BODY to see more)`
         : pretty;
 }
 
@@ -155,9 +190,11 @@ export type ApiCall = {
     timeMs?: number;
     requestBody?: string | null;
     requestContentType?: string;
+    requestNote?: string;    // سطر/سطور زيادة في الـ Payload (مثلًا الملف اللي اترفع)
     responseText: string;
     resultLine?: string;     // سطر نتيجة إضافي (مثلًا ✅ SUCCESS – ...)
     resultOk?: boolean;
+    fullResponse?: boolean;  // true ➜ الـ Response كامل من غير قص
 };
 
 /** بيبني النص (plain) – بيرجّع undefined لو الـ call مكرر */
@@ -171,9 +208,9 @@ export function formatApiCall(call: ApiCall, { dedupe = true } = {}): { plain: s
     const json = tryParseJson(call.responseText);
 
     const sections = (c: (s: string) => string) => [
-        c('▸ Payload'), indent(buildPayload(call.url, call.requestBody, call.requestContentType)),
+        c('▸ Payload'), indent(buildPayload(call.url, call.requestBody, call.requestContentType, call.requestNote)),
         c('▸ Preview'), indent(buildPreview(json)),
-        c('▸ Response'), indent(buildResponse(call.responseText)),
+        c('▸ Response'), indent(buildResponse(call.responseText, call.fullResponse ? Infinity : MAX_RESPONSE)),
     ];
 
     const plain = [

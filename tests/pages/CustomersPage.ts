@@ -70,6 +70,7 @@ export class CustomersPage extends BasePage {
             ]);
             await chooser.setFiles(absolutePath);
         }
+        this.rememberUpload(absolutePath);
 
         // اسم الملف بيظهر في البوب أب بعد الرفع
         await expect(this.page.getByText(path.basename(absolutePath)).first())

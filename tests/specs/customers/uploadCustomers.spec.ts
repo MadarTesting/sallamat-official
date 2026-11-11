@@ -23,8 +23,12 @@ test.describe('Customers – Manual Excel Upload', () => {
         loginPage = new LoginPage(page);
         customersPage = new CustomersPage(page);
 
-        // طباعة كل API call في التيرمنال (Postman-style)
-        customersPage.enableApiLogging();
+        // طباعة APIs العملاء في التيرمنال كاملة (Payload / Preview / Response من غير قص)
+        // تحميل القالب ➜ رفع الملف ➜ قائمة العملاء – من غير APIs الداشبورد والإحصائيات
+        customersPage.enableApiLogging({
+            urlFilter: /download-template|import-customers|\/api\/customers/i,
+            fullResponse: true,
+        });
 
         await loginPage.goto();
         await loginPage.login(testData.validUser.email, testData.validUser.password);
