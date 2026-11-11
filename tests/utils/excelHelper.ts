@@ -31,6 +31,9 @@ function matchField(header: string): keyof CustomerRow | undefined {
 // بادئات موبايل سعودية صحيحة (50, 53, 54, 55, 56, 58, 59)
 const SA_MOBILE_PREFIXES = ['50', '53', '54', '55', '56', '58', '59'];
 
+// نفس القيم اللي في الـ dropdown بتاع عمود "النوع" في القالب (بالظبط: "انثي" بالياء)
+export const GENDERS = ['ذكر', 'انثي'] as const;
+
 /** بيولّد عملاء بأرقام موبايل سعودية صحيحة ومختلفة كل رن */
 export function generateCustomers(count = 3): CustomerRow[] {
     const stamp = Date.now().toString().slice(-6);
@@ -44,6 +47,7 @@ export function generateCustomers(count = 3): CustomerRow[] {
             localPhone,
             countryCode: '966',
             email: `auto.customer.${stamp}.${i + 1}@example.com`,
+            gender: GENDERS[Math.floor(Math.random() * GENDERS.length)],      // ذكر أو انثي عشوائي
         };
     });
 }
