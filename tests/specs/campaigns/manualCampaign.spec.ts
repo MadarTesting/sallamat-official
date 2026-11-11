@@ -20,8 +20,8 @@ test.describe('Manual Campaign Tests', () => {
         const campaignName = `Auto Campaign ${Date.now()}_${Math.floor(Math.random() * 10000)}`;
         const templateToSelect = ManualCampaignPage.DEFAULT_TEMPLATE_NAME;
 
-        // تفعيل طباعة الـ APIs في التيرمنال (شبه Postman)
-        // كل الـ APIs:
+        // طباعة الـ APIs في التيرمنال – الداتا اللي التيست عملها بس (الأكشن + العناصر الجديدة)
+        // كل الـ APIs من غير تصفية: enableApiLogging({ newOnly: false })
         manualCampaignPage.enableApiLogging();
         // أو بفلتر معين (مثلًا الحملات بس):
         // manualCampaignPage.enableApiLogging({ urlFilter: /campaign/i });

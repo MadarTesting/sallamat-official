@@ -20,7 +20,7 @@ test.describe('Create Ad', () => {
         loginPage = new LoginPage(page);
         adPage = new AdPage(page);
 
-        // طباعة كل API call في التيرمنال (Postman-style)
+        // طباعة الـ APIs في التيرمنال – الداتا اللي التيست عملها بس (الأكشن + العناصر الجديدة)
         adPage.enableApiLogging();
         // أو بفلتر: adPage.enableApiLogging({ urlFilter: /ad/i });
 

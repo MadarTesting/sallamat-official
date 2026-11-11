@@ -16,7 +16,7 @@ test.describe('Create Template – Image Attachment', () => {
         loginPage = new LoginPage(page);
         templatePage = new TemplatePage(page);
 
-        // طباعة كل API call في التيرمنال (Postman-style)
+        // طباعة الـ APIs في التيرمنال – الداتا اللي التيست عملها بس (الأكشن + العناصر الجديدة)
         templatePage.enableApiLogging();
 
         await loginPage.goto();

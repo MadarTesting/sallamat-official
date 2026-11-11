@@ -26,7 +26,8 @@ type Fixtures = {
 
 async function openList<T extends CampaignsListPage>(listPage: T, use: (p: T) => Promise<void>) {
     base.setTimeout(0);
-    listPage.enableApiLogging({ urlFilter: new RegExp(listPage.config.api.replace(/[?]/g, '\\?')) });
+    // الفلاتر محتاجة تشوف نتايج كل request ➜ newOnly: false
+    listPage.enableApiLogging({ urlFilter: new RegExp(listPage.config.api.replace(/[?]/g, '\\?')), newOnly: false });
     await listPage.open();
 
     await use(listPage);

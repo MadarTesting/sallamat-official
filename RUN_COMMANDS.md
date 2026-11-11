@@ -163,10 +163,25 @@ $env:API_LOG_BODY="100000"; npx playwright test tests/specs/campaigns/auto-filte
 
 # إظهار الباسوورد والتوكن في اللوج
 $env:SHOW_SECRETS="1"; npx playwright test tests/specs/auth/login.spec.ts
+
+# العربي بالشكل الأصلي (لو التيرمنال بتاعك بيدعم العربي من نفسه)
+$env:ARABIC_RAW="1"; npx playwright test tests/specs/customers/uploadCustomers.spec.ts
 ```
 
 > المتغيرات دي بتفضل شغالة في نفس نافذة التيرمنال. عشان تلغيها:
-> `Remove-Item Env:HEADLESS, Env:API_LOG_BODY, Env:SHOW_SECRETS -ErrorAction SilentlyContinue`
+> `Remove-Item Env:HEADLESS, Env:API_LOG_BODY, Env:SHOW_SECRETS, Env:ARABIC_RAW -ErrorAction SilentlyContinue`
+
+---
+
+## 🧾 الداتا اللي بتتطبع في التيرمنال
+
+- **تستات الأكشن** (create حملة / قالب / إعلان / رفع عملاء): بيتطبع **الداتا اللي التيست عملها بس**
+  - طلب الأكشن نفسه (POST / PUT / DELETE) بالـ Payload والـ Response كاملين
+  - الملفات اللي بتتحمل
+  - العناصر الجديدة بس من أي list بعد الأكشن
+  - أي request فشل (4xx / 5xx)
+- **تستات الفلاتر**: بيتطبع كل request بنتايجه (عشان تشوف الفلتر رجّع إيه)
+- عايز كل الـ APIs في تيست أكشن؟ غيّر `enableApiLogging()` لـ `enableApiLogging({ newOnly: false })`
 
 ---
 

@@ -20,7 +20,7 @@ test.describe('Auto Campaign', () => {
         loginPage = new LoginPage(page);
         autoCampaignPage = new AutoCampaignPage(page);
 
-        // طباعة كل API call في التيرمنال (Postman-style)
+        // طباعة الـ APIs في التيرمنال – الداتا اللي التيست عملها بس (الأكشن + العناصر الجديدة)
         autoCampaignPage.enableApiLogging();
         // أو بفلتر: autoCampaignPage.enableApiLogging({ urlFilter: /campaign/i });
 

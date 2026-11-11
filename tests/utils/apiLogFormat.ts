@@ -197,6 +197,89 @@ export type ApiCall = {
     fullResponse?: boolean;  // true ➜ الـ Response كامل من غير قص
 };
 
+// ============= New items only =============
+
+/** بيدور على أول List من الـ objects اللي ليها id جوه الـ JSON (زي data.data) */
+function findList(json: unknown, path: string[] = []): { path: string[]; items: Array<Record<string, unknown>> } | undefined {
+    if (Array.isArray(json)) {
+        return json.length && json.every((i) => i && typeof i === 'object' && 'id' in (i as object))
+            ? { path, items: json as Array<Record<string, unknown>> }
+            : undefined;
+    }
+    if (json && typeof json === 'object') {
+        for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
+            const found = findList(v, [...path, k]);
+            if (found) return found;
+        }
+    }
+    return undefined;
+}
+
+// فرق الساعة بين الجهاز والسيرفر اللي بنسمح بيه لما نقارن created_at بوقت الأكشن
+const CLOCK_SKEW_MS = 2 * 60 * 1000;
+
+function itemTime(item: Record<string, unknown>): number | undefined {
+    for (const key of ['created_at', 'updated_at', 'createdAt', 'updatedAt']) {
+        const t = typeof item[key] === 'string' ? Date.parse(item[key] as string) : NaN;
+        if (!Number.isNaN(t)) return t;
+    }
+    return undefined;
+}
+
+/**
+ * وضع "الأكشن بس": بيعرض الداتا اللي اتعملت في التيست، مش كل داتا الصفحة.
+ * - قبل أول أكشن (POST / PUT / PATCH / DELETE): الـ lists بتتسجل بس (baseline) ومش بتتطبع
+ * - بعد الأكشن: الـ list بتعرض بس العناصر الجديدة
+ *     • الـ id عمره ما ظهر قبل كده على نفس الـ endpoint
+ *     • والـ created_at / updated_at بعد وقت الأكشن (لو موجودين)
+ * - list مفيهاش عناصر جديدة ➜ مش بتتطبع خالص
+ */
+export class NewItemsTracker {
+    private readonly seenByEndpoint = new Map<string, Set<unknown>>();
+    private firstActionAt: number | undefined;
+
+    /** بيتنادى لما يحصل أكشن (create / update / delete / upload) */
+    markAction(at = Date.now()) {
+        this.firstActionAt ??= at;
+    }
+
+    /**
+     * undefined ➜ الـ response مش list
+     * { skip: true } ➜ list مفيهاش جديد (متطبعهاش)
+     * { text, note } ➜ الـ response بالعناصر الجديدة بس
+     */
+    filter(url: string, responseText: string): { skip: true } | { skip?: false; text: string; note: string } | undefined {
+        const json = tryParseJson(responseText);
+        const list = findList(json);
+        if (!list) return undefined;
+
+        const endpoint = new URL(url, 'http://localhost').pathname;
+        const seen = this.seenByEndpoint.get(endpoint);
+        const hadBaseline = !!seen;
+        const seenIds = seen ?? new Set<unknown>();
+        this.seenByEndpoint.set(endpoint, seenIds);
+
+        const actionAt = this.firstActionAt;
+        const fresh = actionAt === undefined ? [] : list.items.filter((i) => {
+            if (seenIds.has(i.id)) return false;
+            const t = itemTime(i);
+            if (t === undefined) return hadBaseline;          // مفيش تاريخ ➜ نعتمد على الـ baseline بس
+            return t >= actionAt - CLOCK_SKEW_MS;
+        });
+        list.items.forEach((i) => seenIds.add(i.id));
+
+        if (!fresh.length) return { skip: true };
+
+        // نستبدل الـ array بالعناصر الجديدة بس
+        let node = json as Record<string, unknown>;
+        for (const k of list.path.slice(0, -1)) node = node[k] as Record<string, unknown>;
+        if (list.path.length) node[list.path[list.path.length - 1]] = fresh;
+        const text = list.path.length ? JSON.stringify(json) : JSON.stringify(fresh);
+
+        return { text, note: `🆕 ${fresh.length} new item(s) – showing only what this test created` };
+    }
+}
+
 /** بيبني النص (plain) – بيرجّع undefined لو الـ call مكرر */
 export function formatApiCall(call: ApiCall, { dedupe = true } = {}): { plain: string; colored: string } | undefined {
     const key = `${call.method} ${call.url} ${call.status} ${call.responseText.length}:${call.responseText.slice(0, 200)}`;

@@ -1,4 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
+import { execSync } from 'child_process';
+import { installArabicTerminalFix } from './tests/utils/arabicTerminal';
+
+/**
+ * العربي في التيرمنال (Windows): الـ console بيشتغل بـ code page قديم فالحروف العربي بتظهر ????.
+ * بنحوّله لـ UTF-8 (65001) مرة واحدة هنا عشان يتطبق على المشروع كله (كل الـ specs والـ logs والـ console.table).
+ * الـ workers بتورّث نفس الـ console فمفيش حاجة تانية مطلوبة.
+ */
+if (process.platform === 'win32') {
+  try { execSync('chcp 65001', { stdio: 'ignore' }); } catch { /* مش مشكلة لو فشل */ }
+}
+process.stdout.setDefaultEncoding?.('utf8');
+process.stderr.setDefaultEncoding?.('utf8');
+
+/**
+ * العربي بيتعرض مقطّع ومعكوس في تيرمنال VS Code ➜ بنوصّل الحروف ونعكس الاتجاه قبل الطباعة.
+ * بيتعمل في الـ process الرئيسي بس (هو اللي بيطبع كل حاجة في التيرمنال، حتى logs الـ workers).
+ * الـ HTML report بيفضل بالعربي الأصلي. ARABIC_RAW=1 ➜ يطفيه.
+ */
+if (!process.env.TEST_WORKER_INDEX) installArabicTerminalFix();
 
 /**
  * Read environment variables from file.

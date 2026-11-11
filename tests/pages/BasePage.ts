@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { printApiCall } from '../utils/apiLogFormat';
+import { NewItemsTracker, printApiCall } from '../utils/apiLogFormat';
 
 // الصفحات اللي اللوجينج اتفعّل عليها بالفعل (عشان ما يتسجلش مرتين على نفس الصفحة)
 const pagesWithLogging = new WeakSet<Page>();
@@ -28,25 +28,52 @@ export abstract class BasePage {
      * - بيطبع بس الـ API calls (JSON) – مش صفحات Next.js (_rsc) ولا الصور والـ css
      * - نفس الـ call لو الموقع بعته مرتين ورا بعض بيتطبع مرة واحدة
      *
+     * الافتراضي (newOnly = true) ➜ وضع "الأكشن بس" – بيطبع الداتا اللي التيست عملها، مش كل داتا الصفحة:
+     *   - طلبات الأكشن نفسها (POST / PUT / PATCH / DELETE) بالـ Payload والـ Response كاملين
+     *   - الملفات اللي بتتحمل (زي قالب الإكسل)
+     *   - الـ lists بعد الأكشن ➜ العناصر الجديدة بس (اللي اتعملت في التيست)
+     *   - أي request فشل (4xx / 5xx)
+     *   - مش بيطبع: داتا تحميل الصفحة (إحصائيات، session، lists قديمة...) ولا طلبات اللوجين
+     *
+     * newOnly: false ➜ بيطبع كل الـ API calls (زي الفلاتر – محتاجين نشوف النتايج كلها)
+     *
      * @param urlFilter اطبع بس الـ URLs اللي بتطابق الـ Regex (مثلًا /campaign/i)
+     * @param fullResponse الـ Response كامل من غير قص (الافتراضي = نفس newOnly)
      */
-    enableApiLogging(options: { urlFilter?: RegExp; fullResponse?: boolean } = {}) {
+    enableApiLogging(options: { urlFilter?: RegExp; fullResponse?: boolean; newOnly?: boolean } = {}) {
         if (pagesWithLogging.has(this.page)) return;
         pagesWithLogging.add(this.page);
-        const { urlFilter, fullResponse } = options;
+        const { urlFilter, newOnly = true, fullResponse = newOnly } = options;
+        const tracker = newOnly ? new NewItemsTracker() : undefined;
+        const isApiRequest = (type: string, url: string) => ['xhr', 'fetch'].includes(type) && !url.includes('_rsc=');
+        const isAuth = (url: string) => /\/api\/auth\//.test(url);
+        const isWrite = (method: string) => !['GET', 'HEAD', 'OPTIONS'].includes(method);
+
+        // وقت الأكشن بيتسجل لحظة ما الـ request يتبعت (قبل أي list تتحمل بعده)
+        if (tracker) {
+            this.page.on('request', (request) => {
+                if (isApiRequest(request.resourceType(), request.url()) && isWrite(request.method()) && !isAuth(request.url())) {
+                    tracker.markAction();
+                }
+            });
+        }
 
         this.page.on('response', async (response) => {
             try {
                 const request = response.request();
                 const url = request.url();
 
-                if (!['xhr', 'fetch'].includes(request.resourceType())) return;
-                if (url.includes('_rsc=')) return;                      // تنقلات Next.js مش API
+                if (!isApiRequest(request.resourceType(), url)) return;  // مش API (صفحات Next.js _rsc، صور، css)
                 if (urlFilter && !urlFilter.test(url)) return;
 
                 const contentType = response.headers()['content-type'] ?? '';
                 const isFile = /spreadsheet|octet-stream|excel|pdf|image|video/.test(contentType);
                 if (!isFile && !contentType.includes('json')) return;   // API = JSON بس
+
+                const method = request.method();
+                const failed = response.status() >= 400;
+                // وضع الأكشن بس: اللوجين وداتا تحميل الصفحة مش بيتطبعوا (إلا لو فشلوا)
+                if (tracker && !failed && isAuth(url)) return;
 
                 await response.finished();          // عشان الوقت (responseEnd) يبقى متحسب
                 const timing = request.timing();
@@ -68,8 +95,16 @@ export abstract class BasePage {
                         ].join('\n');
                     }
                 }
+                let responseText = isFile ? `<file download – ${contentType}>` : await response.text();
+                let resultLine: string | undefined;
+                if (tracker && !failed && !isFile && !isWrite(method)) {
+                    const filtered = tracker.filter(url, responseText);
+                    if (!filtered || filtered.skip) return;   // داتا الصفحة / list مفيهاش جديد
+                    responseText = filtered.text;
+                    resultLine = filtered.note;
+                }
                 printApiCall({
-                    method: request.method(),
+                    method,
                     url,
                     status: response.status(),
                     statusText: response.statusText(),
@@ -77,7 +112,9 @@ export abstract class BasePage {
                     requestBody,
                     requestContentType,
                     requestNote,
-                    responseText: isFile ? `<file download – ${contentType}>` : await response.text(),
+                    responseText,
+                    resultLine,
+                    resultOk: true,
                     fullResponse,
                 });
             } catch {

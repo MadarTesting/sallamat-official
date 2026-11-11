@@ -23,12 +23,9 @@ test.describe('Customers – Manual Excel Upload', () => {
         loginPage = new LoginPage(page);
         customersPage = new CustomersPage(page);
 
-        // طباعة APIs العملاء في التيرمنال كاملة (Payload / Preview / Response من غير قص)
-        // تحميل القالب ➜ رفع الملف ➜ قائمة العملاء – من غير APIs الداشبورد والإحصائيات
-        customersPage.enableApiLogging({
-            urlFilter: /download-template|import-customers|\/api\/customers/i,
-            fullResponse: true,
-        });
+        // طباعة الـ APIs في التيرمنال – الداتا اللي التيست عملها بس:
+        // تحميل القالب ➜ رفع الملف ➜ العملاء الجدد بس من قائمة العملاء
+        customersPage.enableApiLogging();
 
         await loginPage.goto();
         await loginPage.login(testData.validUser.email, testData.validUser.password);
