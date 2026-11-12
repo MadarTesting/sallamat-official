@@ -135,7 +135,7 @@ export abstract class CampaignsListPage extends BasePage {
         const response = await res;
         await this.closeFilter();
 
-        console.log(`🧩 Filter [${label}] = "${option}" ➜ ${decodeURIComponent(response.url())}`);
+        console.log(`🧩 Filter [${label}] = "${option}" ➜ ${response.status()}`);
         return response;
     }
 

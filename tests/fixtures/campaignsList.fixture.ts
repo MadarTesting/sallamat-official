@@ -11,7 +11,7 @@ import testData from '../testdata/testdata.json';
  * Fixture لتستات فلاتر الحملات (اليدوية والتلقائية):
  * - تسجيل دخول مرة واحدة بس لكل worker وإعادة استخدام الـ session (storageState)
  *   بدل ما كل تيست يعمل login (الموقع بيرفض logins كتير ورا بعض)
- * - طباعة API القائمة في التيرمنال (Payload / Preview / Response)
+ * - طباعة API القائمة في التيرمنال (Payload / Response) – نتيجة أكشن التيست بس، مش تحميل الصفحة
  * - فتح الصفحة من غير فلاتر
  * - بعد التيست: البراوزر يفضل مفتوح (page.pause) إلا لو CI أو NO_PAUSE=1
  *
@@ -26,9 +26,10 @@ type Fixtures = {
 
 async function openList<T extends CampaignsListPage>(listPage: T, use: (p: T) => Promise<void>) {
     base.setTimeout(0);
-    // الفلاتر محتاجة تشوف نتايج كل request ➜ newOnly: false
-    listPage.enableApiLogging({ urlFilter: new RegExp(listPage.config.api.replace(/[?]/g, '\\?')), newOnly: false });
     await listPage.open();
+    // اللوجينج بيبدأ بعد فتح الصفحة: قائمة تحميل الصفحة (من غير فلاتر) مش بتتطبع،
+    // بيتطبع بس نتيجة الأكشن بتاع التيست (فلتر / بحث / ترتيب) ➜ الداتا تظهر مرة واحدة
+    listPage.enableApiLogging({ urlFilter: new RegExp(listPage.config.api.replace(/[?]/g, '\\?')), newOnly: false });
 
     await use(listPage);
 

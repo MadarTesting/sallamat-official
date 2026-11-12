@@ -4,7 +4,7 @@ import { formatApiCall } from './apiLogFormat';
 
 /**
  * للـ API tests (request context): بيبعت الـ request ويطبعه في التيرمنال
- * بنفس شكل الـ UI tests (Payload / Preview / Response) ويضيفه للريبورت.
+ * بنفس شكل الـ UI tests (Payload / Response) ويضيفه للريبورت.
  */
 export async function sendAndLog(
     label: string,

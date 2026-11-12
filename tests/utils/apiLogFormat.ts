@@ -4,10 +4,9 @@
  *   ━━━ ✅ GET 200 OK · 312 ms ━━━
  *   https://api.demo.sallamaat.com/api/campaign?...
  *   ▸ Payload   ➜ الـ query params أو الـ request body
- *   ▸ Preview   ➜ ملخص سريع للـ response (المفاتيح + عدد العناصر)
  *   ▸ Response  ➜ الـ JSON نفسه (بيتقص لو طويل)
  *
- * - مفيش headers (كانت أغلب الكلام)
+ * - مفيش headers (كانت أغلب الكلام) ولا Preview (كان بيكرر نفس داتا الـ Response)
  * - نفس الـ call لو اتكرر ورا بعض (نفس الـ URL والـ status والـ body) بيتطبع مرة واحدة بس
  * - الباسوورد والتوكن بيتخفوا (SHOW_SECRETS=1 لعرضهم)
  * - طول الـ Response: API_LOG_BODY=3000 (الافتراضي 1200)
@@ -122,39 +121,6 @@ function describeMultipart(raw: string): string[] {
         }
     }
     return lines.length ? lines : [`<multipart – ${raw.length} bytes>`];
-}
-
-// ============= Preview =============
-
-function describe(value: unknown): string {
-    if (Array.isArray(value)) return `Array(${value.length})`;
-    if (value && typeof value === 'object') {
-        const keys = Object.keys(value);
-        return `{ ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? ', …' : ''} }`;
-    }
-    return short(value);
-}
-
-/** الـ Preview: ملخص – كل مفتاح ونوعه/قيمته، ولو فيه List بنعرض أول عنصر مختصر */
-export function buildPreview(json: unknown): string {
-    if (json === undefined) return '(not JSON)';
-    if (Array.isArray(json)) {
-        return [`Array(${json.length})`, json.length ? `[0]: ${describe(json[0])}` : ''].filter(Boolean).join('\n');
-    }
-    if (!json || typeof json !== 'object') return short(json, 200);
-
-    const lines: string[] = [];
-    for (const [key, value] of Object.entries(maskSecrets(json) as Record<string, unknown>)) {
-        lines.push(`${key}: ${describe(value)}`);
-        // مستوى واحد جوه (زي data: { data: [...], total: 103 })
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-            for (const [k2, v2] of Object.entries(value as Record<string, unknown>).slice(0, 8)) {
-                lines.push(`  ${k2}: ${describe(v2)}`);
-            }
-        }
-        if (Array.isArray(value) && value.length) lines.push(`  [0]: ${describe(value[0])}`);
-    }
-    return lines.join('\n');
 }
 
 // ============= Response =============
@@ -288,11 +254,9 @@ export function formatApiCall(call: ApiCall, { dedupe = true } = {}): { plain: s
     const icon = call.status >= 400 ? '❌' : '✅';
     const time = call.timeMs !== undefined ? ` · ${call.timeMs} ms` : '';
     const head = `${icon} ${call.method} ${call.status} ${call.statusText ?? ''}`.trimEnd() + time;
-    const json = tryParseJson(call.responseText);
 
     const sections = (c: (s: string) => string) => [
         c('▸ Payload'), indent(buildPayload(call.url, call.requestBody, call.requestContentType, call.requestNote)),
-        c('▸ Preview'), indent(buildPreview(json)),
         c('▸ Response'), indent(buildResponse(call.responseText, call.fullResponse ? Infinity : MAX_RESPONSE)),
     ];
 
