@@ -131,6 +131,34 @@ npx playwright test tests/specs/ads/createAd.spec.ts
 npx playwright test tests/specs/customers/uploadCustomers.spec.ts
 ```
 
+### 🔎 Customers Filters (فلاتر العملاء + البحث)
+
+```bash
+# الفولدر كله
+npx playwright test tests/specs/customers/filters
+
+# Search (اسم العميل / رقم الهاتف)
+npx playwright test tests/specs/customers/filters/01-search.spec.ts
+
+# العملاء (نوع العميل)
+npx playwright test tests/specs/customers/filters/02-customer-type.spec.ts
+
+# تاريخ آخر تعديل
+npx playwright test tests/specs/customers/filters/03-date-range.spec.ts
+
+# الحملات
+npx playwright test tests/specs/customers/filters/04-campaign.spec.ts
+
+# النوع (ذكر / أنثى)
+npx playwright test tests/specs/customers/filters/05-gender.spec.ts
+
+# الترتيب الزمني
+npx playwright test tests/specs/customers/filters/06-sorting.spec.ts
+
+# أكتر من فلتر مع بعض
+npx playwright test tests/specs/customers/filters/07-combined.spec.ts
+```
+
 ---
 
 ## ⚙️ إضافات تحطها في آخر أي أمر
