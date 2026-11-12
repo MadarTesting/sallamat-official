@@ -6,6 +6,9 @@ import { NewItemsTracker, printApiCall } from '../utils/apiLogFormat';
 // الصفحات اللي اللوجينج اتفعّل عليها بالفعل (عشان ما يتسجلش مرتين على نفس الصفحة)
 const pagesWithLogging = new WeakSet<Page>();
 
+// الصفحات اللي اتسجل عليها handler البوب أب (عشان ما يتسجلش مرتين)
+const pagesWithPopupHandler = new WeakSet<Page>();
+
 // آخر ملفات اترفعت من كل صفحة – Chromium مش بيدّي محتوى الـ request لما يكون فيه ملف،
 // فبنعرض في الـ Payload اسم الملف وحجمه من هنا
 const uploadedFiles = new WeakMap<Page, string[]>();
@@ -20,11 +23,33 @@ export abstract class BasePage {
 
     constructor(page: Page) {
         this.page = page;
+        this.registerPopupHandlers();
+    }
+
+    /**
+     * بوب أب "ما هو الجديد في سلامات" بيظهر أحيانًا ويقفل الضغط على الصفحة.
+     * Playwright بيقفله أوتوماتيك أول ما يظهر قبل أي أكشن.
+     */
+    private registerPopupHandlers() {
+        if (pagesWithPopupHandler.has(this.page)) return;
+        pagesWithPopupHandler.add(this.page);
+
+        const whatsNew = this.page.getByRole('dialog', { name: 'ما هو الجديد في سلامات' });
+        this.page.addLocatorHandler(whatsNew, async (dialog) => {
+            const closeBtn = dialog
+                .getByRole('button', { name: /إغلاق|اغلاق|close|تخطي|فهمت|حسنا|حسنًا|تم/i })
+                .first();
+            if (await closeBtn.isVisible().catch(() => false)) {
+                await closeBtn.click();
+            } else {
+                await this.page.keyboard.press('Escape');
+            }
+        });
     }
 
     // ============= API Logging =============
     /**
-     * بيطبع كل API call في التيرمنال مرة واحدة بس، بشكل: Payload / Preview / Response.
+     * بيطبع كل API call في التيرمنال مرة واحدة بس، بشكل: Payload / Response.
      * - بيطبع بس الـ API calls (JSON) – مش صفحات Next.js (_rsc) ولا الصور والـ css
      * - نفس الـ call لو الموقع بعته مرتين ورا بعض بيتطبع مرة واحدة
      *

@@ -87,6 +87,13 @@ export class AutoCampaignPage extends BasePage {
     async selectTemplate(name: string = AutoCampaignPage.DEFAULT_TEMPLATE_NAME): Promise<string> {
         await this.page.waitForLoadState('networkidle').catch(() => {});
 
+        // القوالب متقسمة صفحات – نبحث بالاسم عشان القالب يظهر حتى لو مش في الصفحة الأولى
+        const searchInput = this.page.getByPlaceholder('البحث باسم القالب...');
+        if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
+            await searchInput.fill(name);
+            await this.page.waitForLoadState('networkidle').catch(() => {});
+        }
+
         const title = this.templateTitle(name);
         await expect(title, `Template "${name}" was not found`).toBeVisible({ timeout: 20000 });
         await title.scrollIntoViewIfNeeded();
